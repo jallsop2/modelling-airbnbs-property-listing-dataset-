@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from ast import literal_eval
 
-df = pd.read_csv("tabular_data/fixed_listing.csv")
 
 def remove_rows_with_missing_ratings(df):
 
@@ -45,6 +44,16 @@ def combine_description_strings(df):
     df['Description'] = new_series
 
     return df
+
+
+def set_default_feature_values(df):
+
+    features = ['guests','beds','bathrooms','bedrooms']
+
+    for feature in features:
+        df[feature] = df[feature].fillna(1)
+
+    return df
     
 def clean_tabular_data(df):
 
@@ -52,8 +61,15 @@ def clean_tabular_data(df):
 
     df = combine_description_strings(df)
 
+    df = set_default_feature_values(df)
+
     return df
 
-df = clean_tabular_data(df)
 
-print(df['Description'][2])
+if __name__ == '__main__':
+    df = pd.read_csv("tabular_data/fixed_listing.csv")
+
+    df = clean_tabular_data(df)
+
+    df.to_csv("tabular_data/clean_tabular_data.csv")
+
