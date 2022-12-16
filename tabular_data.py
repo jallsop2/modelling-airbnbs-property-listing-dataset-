@@ -41,7 +41,8 @@ def combine_description_strings(df):
     #df = df.reset_index(drop=True)
 
     new_series = pd.Series(new_descriptions)
-    df.loc['Description'] = new_series
+
+    df['Description'] = new_series.values
 
     return df
 
@@ -73,14 +74,12 @@ def clean_tabular_data():
 
 def load_airbnb():
     df = pd.read_csv("tabular_data/clean_tabular_data.csv")
+    df = df.set_index('ID')
+
     print(df)
 
 
 if __name__ == '__main__':
-
-    #df = pd.read_csv("tabular_data/fixed_listing.csv")
-
-    #combine_description_strings(df)
 
     clean_tabular_data()
 
