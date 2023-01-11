@@ -1,5 +1,6 @@
 from tabular_data import load_airbnb
 from regression_hyperparameter_tuning import custom_tune_regression_model_hyperparameters, tune_regression_model_hyperparameters
+from save import save_model
 
 from sklearn import model_selection
 from sklearn.linear_model import SGDRegressor
@@ -40,12 +41,29 @@ print(f"Test set: RMSE = {mean_squared_error(y_test,y_test_pred,squared=False)},
 model , params, score = tune_regression_model_hyperparameters(X_train, y_train, hyperparameters)
 
 print(params)
+print(model.coef_)
 
 y_train_pred = model.predict(X_train)
 y_test_pred = model.predict(X_test)
 print(f"\nThe score was {score}")
-print(f"Training set: RMSE = {mean_squared_error(y_train,y_train_pred,squared=False)}, r2 score = {r2_score(y_train,y_train_pred)}")
-print(f"Test set: RMSE = {mean_squared_error(y_test,y_test_pred,squared=False)}, r2 score = {r2_score(y_test,y_test_pred)}")
+
+training_RMSE = mean_squared_error(y_train,y_train_pred,squared=False)
+training_r2_score = r2_score(y_train,y_train_pred)
+test_RMSE = mean_squared_error(y_test,y_test_pred,squared=False)
+test_r2_score = r2_score(y_test,y_test_pred)
+print(f"Training set: RMSE = {training_RMSE}, r2 score = {training_r2_score}")
+print(f"Test set: RMSE = {test_RMSE}, r2 score = {test_r2_score}")
+
+metrics = {
+    "Training RMSE" : training_RMSE,
+    "Training r2 score" : training_r2_score,
+    "Test RMSE" : test_RMSE,
+    "Test r2 score" : test_r2_score
+}
+
+path = "models/regression/linear_regression"
+
+save_model(model, params, metrics, path)
 
 #print(model.coef_)
 #print(X_train.shape, X_validation.shape, X_test.shape)
