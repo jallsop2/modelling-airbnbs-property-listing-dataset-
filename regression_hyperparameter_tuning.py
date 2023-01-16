@@ -23,7 +23,7 @@ def custom_tune_regression_model_hyperparameters(model_type, X_train, X_validati
             arg_dict[key] = value[i[counter]]
             counter += 1
         #print(arg_dict)
-        model = SGDRegressor(**arg_dict, random_state=1)
+        model = model_type(**arg_dict, random_state=1)
 
         model.fit(X_train,y_train)
         y_validation_pred = model.predict(X_validation)
@@ -60,12 +60,12 @@ def custom_tune_regression_model_hyperparameters(model_type, X_train, X_validati
     return best_model, best_hyperparameters, best_metrics
 
 
-def tune_regression_model_hyperparameters(X_train, y_train, param_grid):
+def tune_regression_model_hyperparameters(model_class, X_train, y_train, param_grid):
 
     #scorer = make_scorer(mean_squared_error,greater_is_better=False)
 
     #param_grid["random_state"] = [1]
-    grid_search = GridSearchCV(estimator=SGDRegressor() , param_grid=param_grid, scoring= 'neg_root_mean_squared_error')
+    grid_search = GridSearchCV(estimator=model_class , param_grid=param_grid, scoring= 'neg_root_mean_squared_error')
     
     grid_search.fit(X_train, y_train)
 
