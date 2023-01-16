@@ -86,6 +86,8 @@ def evaluate_regression_models(data):
 
 
 
+
+
 if __name__ == "__main__":
 
     data, labels = load_airbnb()
