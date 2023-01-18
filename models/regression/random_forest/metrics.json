@@ -1,6 +1,6 @@
 {
-    "Training RMSE": 0.7499758614338757,
-    "Training r2 score": 0.4473096961119829,
-    "Test RMSE": 0.7601551649790348,
-    "Test r2 score": 0.3971536480672514
+    "Training RMSE": 0.7216714259479293,
+    "Training r2 score": 0.5275621875224612,
+    "Test RMSE": 0.7046070281007005,
+    "Test r2 score": 0.3383609120777249
 }

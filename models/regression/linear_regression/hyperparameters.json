@@ -1,6 +1,6 @@
 {
-    "alpha": 0.1,
-    "eta0": 0.01,
+    "alpha": 0.5,
+    "eta0": 0.05,
     "max_iter": 100,
     "random_state": 1
 }
