@@ -72,13 +72,16 @@ def clean_tabular_data():
 
 
 
-def load_airbnb():
+def load_airbnb(category=False):
     df = pd.read_csv("tabular_data/clean_tabular_data.csv")
     df = df.set_index('ID')
 
     column_labels = df.columns.values.tolist()
 
     labels = [label for label in column_labels if df[label].dtype in ['int64','float64']]
+
+    if category == True:
+        labels.append("Category")
 
     features = df[labels].to_numpy()
 
