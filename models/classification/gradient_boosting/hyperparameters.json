@@ -1,0 +1,7 @@
+{
+    "max_depth": 2,
+    "min_samples_leaf": 10,
+    "n_iter_no_change": null,
+    "random_state": 1,
+    "subsample": 0.5
+}
