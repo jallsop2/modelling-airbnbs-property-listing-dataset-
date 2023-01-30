@@ -65,3 +65,6 @@ Gradient Boosting:
 
 Train RMSE = 0.691
 Test RMSE = 0.777
+
+
+These results show that it is difficult to do much better than the origional model, likely because that is the maximum the data can be used to predict the price. They do show that some models work better than other for this case, with the gradient boosted regressor working the best and the regression tree working the worst. However the gradient boosted and random forest models worked significantly slower than the others, so if I wanted to replicate this with a mch larger data set, then the linear regression model might be a more efficient choice. 
