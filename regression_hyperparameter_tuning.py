@@ -65,7 +65,7 @@ def tune_regression_model_hyperparameters(model_class, X_train, y_train, param_g
     #scorer = make_scorer(mean_squared_error,greater_is_better=False)
 
     #param_grid["random_state"] = [1]
-    grid_search = GridSearchCV(estimator=model_class , param_grid=param_grid, scoring= 'neg_root_mean_squared_error')
+    grid_search = GridSearchCV(estimator=model_class , param_grid=param_grid, scoring= 'neg_root_mean_squared_error', cv = 5)
     
     grid_search.fit(X_train, y_train)
 

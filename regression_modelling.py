@@ -1,6 +1,6 @@
 from tabular_data import load_airbnb
 from regression_hyperparameter_tuning import custom_tune_regression_model_hyperparameters, tune_regression_model_hyperparameters
-from save import save_model
+from save_models import save_model, test_and_save_model
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import SGDRegressor
@@ -15,41 +15,41 @@ import json
 import joblib
 
 
-def evaluate_regression_models(data):
+def tune_regression_models(data):
 
     X, y = data
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5)
 
     
     models = []
 
-    models.append(["linear_regression", SGDRegressor(), {
-        "alpha" : [0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.01, 0.1, 0.5],
-        "max_iter" : [100, 500, 1000, 5000, 10000, 100000],
-        "eta0" : [0.001, 0.005, 0.01, 0.05, 0.1, 0.5],
+    """ models.append(["linear_regression", SGDRegressor(), {
+        "alpha" : [0.001, 0.005, 0.01, 0.1, 0.2, 0.5],
+        "max_iter" : [50, 100, 500],
+        "eta0" : [0.005, 0.01, 0.05],
         "random_state" : [1]
-    }])
+    }]) """
 
-    models.append(["regression_tree", DecisionTreeRegressor(), {
+    """ models.append(["regression_tree", DecisionTreeRegressor(), {
         "max_depth" : [5, 10, 100, 1000, None],
         "min_samples_split" : [1, 2, 5, 10],
         "min_samples_leaf" : [1, 2, 5, 10, 15, 20, 25],
         "random_state" : [1]
-    } ])
+    } ]) """
 
-    models.append(["random_forest", RandomForestRegressor(), {
+    """ models.append(["random_forest", RandomForestRegressor(), {
         "n_estimators" : [100, 500],
         "max_depth" : [10, 100, None],
         "min_samples_leaf" : [1, 5, 10, 15, 20],
         "random_state" : [1]
-    } ]) 
+    } ])  """
 
     models.append(["gradient_boosting", GradientBoostingRegressor(), {
-        "subsample" : [0.25, 0.5, 0.66, 0.75],
+        "subsample" : [0.25, 0.5, 0.75, 1],
         "min_samples_leaf" : [1, 5, 10, 15, 20],
         "max_depth" : [1, 2, 3, 4, 5, 10],
-        "n_iter_no_change" : [5, 10, 20],
+        "n_iter_no_change" : [5, 10, 20, None],
         "random_state" : [1]
     }])
 
@@ -83,12 +83,49 @@ def evaluate_regression_models(data):
             "Test r2 score" : test_r2_score
         }
 
-        path = f"models/regression/{models[i][0]}"
-
-        save_model(best_model, best_params, metrics, path)
 
 
-def find_best_model():
+def evaluate_regression_models(models, X, y, n):
+
+    num_models = len(models)
+
+    train_RMSE = np.zeros([num_models])
+    test_RMSE = np.zeros([num_models])
+
+    #counter = np.zeros([num_models])
+
+    for i in range(n):
+        #print(test_RMSE)
+
+        print(f" {i}", end = "\r")
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+        current_train_RMSE = []
+        current_test_RMSE = []
+
+        for model_type, params in models.items():
+            model = model_type[1](**params)
+            model.fit(X_train,y_train)
+            y_train_pred = model.predict(X_train)
+            y_test_pred = model.predict(X_test)
+            current_train_RMSE.append(mean_squared_error(y_train,y_train_pred,squared=False))
+            current_test_RMSE.append(mean_squared_error(y_test,y_test_pred,squared=False))
+
+        train_RMSE += np.array(current_train_RMSE)
+        test_RMSE += np.array(current_test_RMSE)
+
+    train_RMSE = train_RMSE/n
+    test_RMSE = test_RMSE/n
+
+
+    for i in range(num_models):
+        print(train_RMSE[i], test_RMSE[i])
+    
+    #print(counter)
+
+
+def find_best_saved_regression_model():
     
     dirs = os.listdir("models/regression")
     best_RMSE = np.infty
@@ -119,10 +156,51 @@ if __name__ == "__main__":
 
     y = data[:,3]
     X = np.concatenate((data[:,:3], data[:,4:]),1)
-    #X = data[:,:3]
-    #X = np.concatenate((data[:,:3], data[:,10:]),1)
-
-    evaluate_regression_models([X,y])
 
 
-    print(find_best_model())
+    models = {}
+
+    models["linear_regression", SGDRegressor] = {
+        "random_state" : 1
+    }
+
+    """ models["linear_regression", SGDRegressor] = {
+        "alpha" : 0.1,
+        "max_iter" : 10000,
+        "learning_rate" : "adaptive",
+        "eta0" : 0.01,
+        "n_iter_no_change" : 100,
+        "random_state" : 1
+    }
+
+    models["regression_tree", DecisionTreeRegressor] =  {
+        "max_depth" : None,
+        "min_samples_split" : 75,
+        "min_samples_leaf" : 25,
+        "random_state" : 1
+    }
+
+    models["random_forest", RandomForestRegressor] = {
+        "n_estimators" : 1000,
+        "max_depth" : 10,
+        "min_samples_leaf" : 15,
+        "min_samples_split" : 30,
+        "random_state" : 1
+    }
+
+    models["gradient_boosting", GradientBoostingRegressor] = {
+        "n_estimators" : 100,
+        "subsample" : 0.5,
+        "min_samples_leaf" : 15,
+        "min_samples_split" : 60,
+        "max_depth" : 2,
+        "random_state" : 1
+    } """
+
+   
+
+    evaluate_regression_models(models, X, y, 100000)
+
+    #test_and_save_model(models, 10000, "regression", X, y)
+
+    #print(find_best_saved_regression_model())

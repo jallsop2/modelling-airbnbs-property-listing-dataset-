@@ -1,5 +1,5 @@
 {
-    "C": 0.5,
+    "C": 1,
     "max_iter": 100,
     "random_state": 1
 }
