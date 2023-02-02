@@ -1,6 +1,6 @@
 {
-    "max_depth": 5,
-    "min_samples_leaf": 15,
-    "min_samples_split": 1,
+    "max_depth": null,
+    "min_samples_split": 150,
+    "min_samples_leaf": 25,
     "random_state": 1
 }

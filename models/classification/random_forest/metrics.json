@@ -1,5 +1,4 @@
 {
-    "train_accuracy": 0.5111876075731497,
-    "validation_accuracy": 0.3871647509578544,
-    "test_accuracy": 0.357429718875502
+    "average training accuracy": 0.6720567986230641,
+    "average test accuracy": 0.3808755020080326
 }

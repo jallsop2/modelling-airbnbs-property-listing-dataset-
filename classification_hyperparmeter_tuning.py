@@ -54,7 +54,7 @@ def tune_classification_model_hyperparameters(model_class, X_train, X_test, y_tr
     #scorer = make_scorer(mean_squared_error,greater_is_better=False)
 
     #param_grid["random_state"] = [1]
-    grid_search = GridSearchCV(estimator=model_class , param_grid=param_grid, scoring= 'accuracy')
+    grid_search = GridSearchCV(estimator=model_class , param_grid=param_grid, scoring= 'accuracy', cv = 10)
     
     grid_search.fit(X_train, y_train)
 
