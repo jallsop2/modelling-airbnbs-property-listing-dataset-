@@ -1,6 +1,6 @@
 from tabular_data import load_airbnb
 from regression_hyperparameter_tuning import custom_tune_regression_model_hyperparameters, tune_regression_model_hyperparameters
-from save_models import save_model, test_and_save_model
+from save_models import save_model
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import SGDRegressor
@@ -104,8 +104,9 @@ def evaluate_regression_models(models, X, y, n):
         current_train_RMSE = []
         current_test_RMSE = []
 
-        for model_type, params in models.items():
-            model = model_type[1](**params)
+        for j in range(num_models):
+            params = models[j][2]
+            model = models[j][1](**params)
             model.fit(X_train,y_train)
             y_train_pred = model.predict(X_train)
             y_test_pred = model.predict(X_test)
@@ -123,6 +124,47 @@ def evaluate_regression_models(models, X, y, n):
         print(train_RMSE[i], test_RMSE[i])
     
     #print(counter)
+
+def test_and_save_regression_model(models, num_tests, X, y):
+
+    num_models = len(models)
+
+    avg_train_RMSE = np.zeros([num_models])
+    avg_test_RMSE = np.zeros([num_models])
+
+    for i in range(num_tests):
+
+        print(f"Test {i+1}", end = "\r")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+        for j in range(num_models):
+            params = models[j][2]
+            model = models[j][1](**params)
+            model.fit(X_train,y_train)
+            y_train_pred = model.predict(X_train)
+            y_test_pred = model.predict(X_test)
+            avg_train_RMSE[j] += mean_squared_error(y_train,y_train_pred,squared=False)
+            avg_test_RMSE[j] += mean_squared_error(y_test,y_test_pred,squared=False)
+
+
+    avg_train_RMSE = avg_train_RMSE/num_tests
+    avg_test_RMSE = avg_test_RMSE/num_tests
+
+    for j in range(num_models):
+        params = models[j][2]
+        model = models[j][1](**params)
+        model.fit(X, y)
+
+        metrics = {
+        "average training RMSE" : avg_train_RMSE[j],
+        "average test RMSE" : avg_test_RMSE[j]
+        }
+
+        path = f"models/regression/{models[j][0]}"
+
+        save_model(model, params, metrics, path)
+
+        counter += 1
 
 
 def find_best_saved_regression_model():
@@ -201,6 +243,6 @@ if __name__ == "__main__":
 
     evaluate_regression_models(models, X, y, 100000)
 
-    #test_and_save_model(models, 10000, "regression", X, y)
+    #test_and_save_model(models, 10000, X, y)
 
     #print(find_best_saved_regression_model())
