@@ -1,0 +1,12 @@
+{
+    "RMSE": {
+        "Training data": 0.7425423264503479,
+        "Test data": 0.8237720727920532
+    },
+    "r2_score": {
+        "Training data": 0.4372607469558716,
+        "Test data": 0.3182752728462219
+    },
+    "average_training_duration": 0.0773746822699377,
+    "average_interference_latency": 6.379733792005029e-05
+}

@@ -1,12 +1,21 @@
 import torch
 import numpy as np
+import yaml
+import os
+import datetime
+from time import perf_counter as timer
+
+from ast import literal_eval
 
 from tabular_data import load_airbnb
+from save_models import save_model
 
 from torch.utils.data import Dataset, random_split
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as f
+
+from torchmetrics.functional import r2_score
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -84,21 +93,55 @@ class LinearRegression(torch.nn.Module):
         return self.linear_layer(features)
 
 
-def train(model, data_loader, track_performance=False, epochs=10, learning_rate = 0.001):
+class NN(torch.nn.Module):
+    def __init__(self, width=16, depth=2):
+        super().__init__()
 
-    optimiser = torch.optim.SGD(model.parameters(), lr = learning_rate)
+        self.width = width
+        self.depth = depth
 
-    if track_performance == True:
+        setup_list = [torch.nn.Linear(11, width), torch.nn.ReLU()]
+
+        for i in range(depth-2):
+            setup_list.append(torch.nn.Linear(width, width))
+            setup_list.append(torch.nn.ReLU())
+
+        setup_list.append(torch.nn.Linear(width, 1))
+
+        self.layers = torch.nn.Sequential(*setup_list)
+        
+    def forward(self, features):
+        return self.layers(features)
+
+
+def get_nn_config():
+    with open("nn_config.yaml", "r") as file:
+        try:
+            return yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+
+def train(model, data_loader, epochs=10, learning_rate=0.001, optimiser_class=torch.optim.SGD, track_performance=False, tensorboard=False):
+
+    optimiser = optimiser_class(model.parameters(), lr = learning_rate)
+
+    if tensorboard == True:
         writer = SummaryWriter()
 
-
     batch_idx = 0
+
+    train_tic = timer()
+    avg_pred_time = 0
 
     for epoch in range(epochs):
         for batch in data_loader:
             
             features, labels = batch
+
+            pred_tic = timer()            
             predictions = model(features)
+            avg_pred_time += timer() - pred_tic
 
             labels = labels.view(-1,1)
 
@@ -108,56 +151,72 @@ def train(model, data_loader, track_performance=False, epochs=10, learning_rate 
             optimiser.step()
             optimiser.zero_grad()
 
-            if track_performance == True:
+            if tensorboard == True:
                 writer.add_scalar("loss", loss.item(), batch_idx)
-                batch_idx += 1
+            
+            batch_idx += 1
+    
+    if track_performance == True:
 
-def test(model, train_data, test_data=None, validation_data=None, print_metrics = False):
+        training_time = timer() - train_tic
 
-    train_RMSE = None
-    validation_RMSE = None
-    test_RMSE = None
+        avg_pred_time /= batch_idx
 
-
-    X_train = train_data.data_tensor[:,:-1]
-    y_train = train_data.data_tensor[:,-1].view(-1,1)
-
-    train_predictions = model(X_train)
-    train_RMSE = torch.sqrt(f.mse_loss(train_predictions, y_train))
-
-    if print_metrics == True:
-        print(f"Training loss = {train_RMSE}")
+        return (training_time, avg_pred_time)
 
 
-    if validation_data != None:
-        X_validation = validation_data.data_tensor[:,:-1]
-        y_validation = validation_data.data_tensor[:,-1].view(-1,1)
 
-        validation_predictions = model(X_validation)
-        validation_RMSE = torch.sqrt(f.mse_loss(validation_predictions, y_validation))
+def test(model, list_of_data_sets, print_metrics = False):
 
-        if print_metrics == True:
-            print(f"Validation loss = {validation_RMSE}")
+    num_data_sets = len(list_of_data_sets)
 
-    if test_data != None:
-        X_test = test_data.data_tensor[:,:-1]
-        y_test = test_data.data_tensor[:,-1].view(-1,1)
+    RMSE_list = [0]*num_data_sets
+    r2_list = [0]*num_data_sets
 
-        test_predictions = model(X_test)
-        test_RMSE = torch.sqrt(f.mse_loss(test_predictions, y_test))
+    for i in range(num_data_sets):
 
+        X = list_of_data_sets[i].data_tensor[:,:-1]
+        y = list_of_data_sets[i].data_tensor[:,-1].view(-1,1)
+
+        predictions = model(X)
+        RMSE_list[i] = torch.sqrt(f.mse_loss(predictions, y))
+        r2_list[i] = r2_score(predictions, y)
 
         if print_metrics == True:
-            print(f"Test loss = {test_RMSE}")
+            print(f"\nDataset {i}")
+            print(f"RMSE = {RMSE_list[i]}")
+            print(f"r2 score = {r2_list[i]}")
+        
+    return (RMSE_list, r2_list)
 
-    return [train_RMSE, validation_RMSE, test_RMSE]
 
 
-def get_average_model_performance(model_class, hyperparams, Dataset, num_tests=10, batch_size=50, epochs=100, train_split_size=0.7):
+def get_average_model_performance(hyperparams, Dataset, num_tests=10, batch_size=50, train_split_size=0.7):
 
+    metrics = []
 
     train_RMSE = 0
-    test_RMSE = 2
+    test_RMSE = 0
+
+    train_r2_score = 0
+    test_r2_score = 0
+
+    training_time = 0
+    pred_time = 0
+
+    optimiser_whitelist = ["torch.optim.SGD"]
+
+    learning_rate = hyperparams["learning_rate"]
+
+    optimiser_str = hyperparams["optimiser"]
+
+    epochs = hyperparams["epochs"]
+    
+    if optimiser_str in optimiser_whitelist:
+        optimiser_class = eval(optimiser_str)
+    else:
+        print("That optimiser is not allowed.")
+        exit()
 
     for test_num in range(num_tests):
 
@@ -167,52 +226,74 @@ def get_average_model_performance(model_class, hyperparams, Dataset, num_tests=1
 
         train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
 
-        model = model_class()
+        model = NN(hyperparams["hidden_layer_width"], hyperparams["depth"])
 
-        train(model, train_loader, **hyperparams)
+        current_training_time, current_pred_time = train(model, train_loader, epochs, learning_rate, optimiser_class, track_performance=True)
 
-        metrics = test(model, train_data, test_data)
+        current_RMSE, current_r2_score = test(model, [train_data, test_data])
 
-        train_RMSE += metrics[0]
-        test_RMSE += metrics[2]
+        train_RMSE += current_RMSE[0]/num_tests
+        test_RMSE += current_RMSE[1]/num_tests
 
-    train_RMSE = train_RMSE/num_tests
-    test_RMSE = test_RMSE/num_tests
+        train_r2_score += current_r2_score[0]/num_tests
+        test_r2_score += current_r2_score[1]/num_tests
 
-    return (train_RMSE, test_RMSE)
+        training_time += current_training_time/num_tests
+        pred_time += current_pred_time/num_tests
+
+
+    metrics = {
+        "RMSE" : {
+            "Training data" : train_RMSE.item(),
+            "Test data" : test_RMSE.item()
+        },
+        "r2_score" : {
+            "Training data" : train_r2_score.item(),
+            "Test data" : test_r2_score.item()
+        },
+        "average_training_duration" : training_time,
+        "average_interference_latency" : pred_time
+    }
+
+    return (model, metrics)
 
 
 
-def test_average_performance():
-    model_class = LinearRegression
-    hyperparams = {
-        "epochs" : 10,
-        "learning_rate" : 0.01
-        }
+def test_average_performance(print_metrics=True, save_to_file=False):
+
+    hyperparameters = get_nn_config()
     dataset = AirbnbNightlyPriceImageDataset
     num_tests = 100
     batch_size = 50
     train_split_size = 0.7
 
-    train_RMSE, test_RMSE = get_average_model_performance(model_class, hyperparams, dataset, num_tests, batch_size, train_split_size)
+    model, metrics = get_average_model_performance(hyperparameters, dataset, num_tests, batch_size, train_split_size)
 
-    print(f"Average training RMSE = {train_RMSE}")
-    print(f"Average test RMSE = {test_RMSE}")
+    if print_metrics == True:
+        print(metrics)
+    
+    if save_to_file == True:
+        datetime_str = datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S')
+        path = f"models/regression/neural_networks/{datetime_str}"
+        os.makedirs(path)
 
+        save_model(model, hyperparameters, metrics, path, pytorch=True)
 
 if __name__ == "__main__":
 
-    #test_average_performance()
+    test_average_performance(save_to_file = True)
 
-    train_data, test_data = create_train_test_datasets(AirbnbNightlyPriceImageDataset, train_split=0.7)
+
+    """ train_data, test_data = create_train_test_datasets(AirbnbNightlyPriceImageDataset, train_split=0.7)
 
     train_loader = DataLoader(train_data, shuffle=True, batch_size=50)
 
-    model = LinearRegression()
+    #model = LinearRegression()
+    model = NN()
 
-    train(model, train_loader, True, 100, 0.01)
+    train(model, train_loader, True, 10, 0.01)
 
-    test(model, train_data, test_data, print_metrics=True)
+    test(model, train_data, test_data, print_metrics=True) """
 
             
 
