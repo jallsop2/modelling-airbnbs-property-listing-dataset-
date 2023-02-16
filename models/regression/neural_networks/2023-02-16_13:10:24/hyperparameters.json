@@ -1,0 +1,10 @@
+{
+    "optimiser": "torch.optim.SGD",
+    "optimiser_hyperparameters": {
+        "lr": 0.1,
+        "weight_decay": 0.05
+    },
+    "epochs": 50,
+    "hidden_layer_width": 8,
+    "depth": 2
+}

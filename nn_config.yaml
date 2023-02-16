@@ -1,5 +1,7 @@
 optimiser: torch.optim.SGD
-learning_rate: 0.1
-epochs: 10
-hidden_layer_width: 16
+optimiser_hyperparameters: 
+  lr: 0.1
+  weight_decay: 0
+epochs: 100
+hidden_layer_width: 8
 depth: 2

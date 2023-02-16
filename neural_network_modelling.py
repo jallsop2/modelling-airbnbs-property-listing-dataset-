@@ -3,6 +3,7 @@ import numpy as np
 import yaml
 import os
 import datetime
+from time import sleep
 from time import perf_counter as timer
 
 from ast import literal_eval
@@ -122,9 +123,9 @@ def get_nn_config():
             print(exc)
 
 
-def train(model, data_loader, epochs=10, learning_rate=0.001, optimiser_class=torch.optim.SGD, track_performance=False, tensorboard=False):
+def train(model, data_loader, optimiser_class,  optimiser_hyperparameters, epochs=10, track_performance=False, tensorboard=False):
 
-    optimiser = optimiser_class(model.parameters(), lr = learning_rate)
+    optimiser = optimiser_class(model.parameters(), **optimiser_hyperparameters)
 
     if tensorboard == True:
         writer = SummaryWriter()
@@ -190,115 +191,169 @@ def test(model, list_of_data_sets, print_metrics = False):
     return (RMSE_list, r2_list)
 
 
+def save_configs_to_file(hyperparameter_list, metrics_list):
 
-def get_average_model_performance(hyperparams, Dataset, num_tests=10, batch_size=50, train_split_size=0.7):
+    num_configs = len(hyperparameter_list)
 
-    metrics = []
+    for config_num in range(num_configs):
 
-    train_RMSE = 0
-    test_RMSE = 0
+            hyperparameters = hyperparameter_list[config_num]
 
-    train_r2_score = 0
-    test_r2_score = 0
+            full_dataset = AirbnbNightlyPriceImageDataset()
+            data_loader = DataLoader(full_dataset, batch_size, shuffle=True)
 
-    training_time = 0
-    pred_time = 0
+            optimiser_str = hyperparameters["optimiser"]
+            optimiser_class = eval(optimiser_str)
+            optimiser_hyperparameters = hyperparameters["optimiser_hyperparameters"]
+            epochs = hyperparameters["epochs"]
+            
 
-    optimiser_whitelist = ["torch.optim.SGD"]
 
-    learning_rate = hyperparams["learning_rate"]
+            model = NN(hyperparameters["hidden_layer_width"], hyperparameters["depth"])
 
-    optimiser_str = hyperparams["optimiser"]
+            train(model, data_loader, optimiser_class, optimiser_hyperparameters, epochs, track_performance=False, tensorboard=False)
 
-    epochs = hyperparams["epochs"]
-    
-    if optimiser_str in optimiser_whitelist:
-        optimiser_class = eval(optimiser_str)
-    else:
-        print("That optimiser is not allowed.")
-        exit()
+            metrics = metrics_list[config_num]
+
+
+            sleep(1)
+            datetime_str = datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S')
+            path = f"models/regression/neural_networks/{datetime_str}"
+            os.makedirs(path)
+            save_model(model, hyperparameters, metrics, path, pytorch=True)
+
+
+def get_average_model_performance(hyperparameter_list, Dataset, num_tests=10, batch_size=50, train_split_size=0.7, print_metrics=True, save_to_file=False, tensorboard=False ):
+
+    num_configs = len(hyperparameter_list)
+
+    train_RMSE = np.zeros([num_configs])
+    test_RMSE = np.zeros([num_configs])
+
+    train_r2_score = np.zeros([num_configs])
+    test_r2_score = np.zeros([num_configs])
+
+    training_time = np.zeros([num_configs])
+    pred_time = np.zeros([num_configs])
+
+    optimiser_whitelist = ["torch.optim.SGD", "torch.optim.Adam"]
 
     for test_num in range(num_tests):
 
         print(f"Test: {test_num}", end = "\r")
 
         train_data, test_data = create_train_test_datasets(Dataset, train_split=train_split_size)
-
         train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
 
-        model = NN(hyperparams["hidden_layer_width"], hyperparams["depth"])
+        config_num = 0
+        for hyperparameters in hyperparameter_list:
 
-        current_training_time, current_pred_time = train(model, train_loader, epochs, learning_rate, optimiser_class, track_performance=True)
+            optimiser_str = hyperparameters["optimiser"]
+            optimiser_hyperparameters = hyperparameters["optimiser_hyperparameters"]
+            epochs = hyperparameters["epochs"]
 
-        current_RMSE, current_r2_score = test(model, [train_data, test_data])
+            if optimiser_str in optimiser_whitelist:
+                optimiser_class = eval(optimiser_str)
+            else:
+                print("That optimiser is not allowed.")
+                exit()
 
-        train_RMSE += current_RMSE[0]/num_tests
-        test_RMSE += current_RMSE[1]/num_tests
+            model = NN(hyperparameters["hidden_layer_width"], hyperparameters["depth"])
 
-        train_r2_score += current_r2_score[0]/num_tests
-        test_r2_score += current_r2_score[1]/num_tests
+            current_training_time, current_pred_time = train(model, train_loader, optimiser_class, optimiser_hyperparameters, epochs, track_performance=True, tensorboard=tensorboard)
+            
+            current_RMSE, current_r2_score = test(model, [train_data, test_data])
 
-        training_time += current_training_time/num_tests
-        pred_time += current_pred_time/num_tests
+            train_RMSE[config_num] += current_RMSE[0]/num_tests
+            test_RMSE[config_num] += current_RMSE[1]/num_tests
 
+            train_r2_score[config_num] += current_r2_score[0]/num_tests
+            test_r2_score[config_num] += current_r2_score[1]/num_tests
 
-    metrics = {
-        "RMSE" : {
-            "Training data" : train_RMSE.item(),
-            "Test data" : test_RMSE.item()
-        },
-        "r2_score" : {
-            "Training data" : train_r2_score.item(),
-            "Test data" : test_r2_score.item()
-        },
-        "average_training_duration" : training_time,
-        "average_interference_latency" : pred_time
-    }
+            training_time[config_num] += current_training_time/num_tests
+            pred_time[config_num] += current_pred_time/num_tests
 
-    return (model, metrics)
+            config_num += 1
+    
+    print("Testing complete. \n")
 
+    metrics_list = []
+    for config_num in range(num_configs):
 
+        metrics_list.append({
+            "RMSE" : {
+                "Training data" : train_RMSE[config_num].item(),
+                "Test data" : test_RMSE[config_num].item()
+            },
+            "r2_score" : {
+                "Training data" : train_r2_score[config_num].item(),
+                "Test data" : test_r2_score[config_num].item()
+            },
+            "average_training_duration" : training_time[config_num],
+            "average_interference_latency" : pred_time[config_num]
+        })
 
-def test_average_performance(print_metrics=True, save_to_file=False):
+        if print_metrics == True:
+            print(metrics_list[config_num]["RMSE"])
 
-    hyperparameters = get_nn_config()
-    dataset = AirbnbNightlyPriceImageDataset
-    num_tests = 100
-    batch_size = 50
-    train_split_size = 0.7
-
-    model, metrics = get_average_model_performance(hyperparameters, dataset, num_tests, batch_size, train_split_size)
-
-    if print_metrics == True:
-        print(metrics)
     
     if save_to_file == True:
-        datetime_str = datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S')
-        path = f"models/regression/neural_networks/{datetime_str}"
-        os.makedirs(path)
-
-        save_model(model, hyperparameters, metrics, path, pytorch=True)
+        save_configs_to_file(hyperparameter_list, metrics_list)
+   
 
 if __name__ == "__main__":
 
-    test_average_performance(save_to_file = True)
+    dataset = AirbnbNightlyPriceImageDataset
+    num_tests = 1000
+    batch_size = 100
+    train_split_size = 0.7
+
+    #hyperparameters = get_nn_config()
+
+    hyperparameter_list = []
+
+    hyperparameter_list.append({
+        "optimiser": "torch.optim.SGD",
+        "optimiser_hyperparameters": { 
+            "lr": 0.1,
+            "weight_decay": 0.05},
+        "epochs": 50,
+        "hidden_layer_width": 8,
+        "depth": 2
+    })
+
+    hyperparameter_list.append({
+        "optimiser": "torch.optim.Adam",
+        "optimiser_hyperparameters": { 
+            "lr": 0.01,
+            "weight_decay": 0.05},
+        "epochs": 50,
+        "hidden_layer_width": 8,
+        "depth": 2
+    })
+
+    hyperparameter_list.append({
+        "optimiser": "torch.optim.SGD",
+        "optimiser_hyperparameters": { 
+            "lr": 0.05,
+            "weight_decay": 0.05},
+        "epochs": 50,
+        "hidden_layer_width": 32,
+        "depth": 4
+    })
+
+    hyperparameter_list.append({
+        "optimiser": "torch.optim.Adam",
+        "optimiser_hyperparameters": { 
+            "lr": 0.005,
+            "weight_decay": 0.05},
+        "epochs": 50,
+        "hidden_layer_width": 32,
+        "depth": 4
+    })
 
 
-    """ train_data, test_data = create_train_test_datasets(AirbnbNightlyPriceImageDataset, train_split=0.7)
-
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=50)
-
-    #model = LinearRegression()
-    model = NN()
-
-    train(model, train_loader, True, 10, 0.01)
-
-    test(model, train_data, test_data, print_metrics=True) """
-
-            
-
-            
 
 
 
-
+    get_average_model_performance(hyperparameter_list, dataset, num_tests, batch_size, train_split_size, print_metrics=True, save_to_file=True, tensorboard=False)
