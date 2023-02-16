@@ -126,4 +126,82 @@ Test accuracy = 0.394
 
 
 
-Aside from the decision tree algorithm, the other models were all fairly similar, with the gradient boosted being best by a small amount. Interestingly the gradient boosting model has quite a high training accuracy, meaning it is still very biased, however I was unable to make the model ay less biased without making it perform worse on the test set. A likely explanation is that ~0.4 is the best the data can be used to predict the cateories, but the gradient boosting model has enough complexity to do that while also overfitting to the training set. This could naturally be solved by having more data, and it seems likely that with more data the gradient boosting algorithm would be able to perform better than the logistic regression algorithm. However the gradient boosting algorithm also runs significantly slower than the logistic regression so a it's possible that would make it a more reasonable choice.
+Aside from the decision tree algorithm, the other models were all fairly similar, with the gradient boosted being best by a small amount. Interestingly the gradient boosting model has quite a high training accuracy, meaning it is still very biased, however I was unable to make the model any less biased without making it perform worse on the test set. A likely explanation is that ~0.4 is the best the data can be used to predict the cateories, but the gradient boosting model has enough capacity to do that while also overfitting to the training set. This could naturally be solved by having more data, and it seems likely that with more data the gradient boosting algorithm would be able to perform better than the logistic regression algorithm. However the gradient boosting algorithm also runs significantly slower than the logistic regression so it's possible that would make it a more reasonable choice.
+
+
+# Milestone 6
+
+The aim of this milestone was to use pytorch to create a configurable neural network, and to use this to predict the nightly price of the Airbnb listings.
+
+First I had to create a custom pytorch dataset class, by inheriting `torch.utils.data.Dataset`, which took the airbnb data and turned it into a pytorch tensor, and contained a `__getitem__` method to get the features and label at an index. I also allowed the class to take a list of indices, and only use the data at those indices. This allowed me to split a list of indices using the sklearn train_test_split function and get two custom datasets for the training and test data.
+
+Next I created a class for the neural network by inheriting `torch.nn.module`. This class took in the width of the hidden layers and the depth of the model as parameters, so that they could be externally configured, and then defined the layers using `torch.nn.Linear` and `torch.nn.ReLU`. It also had a forward method to define the forward pass of the model, in this case just running the features through the layers.
+
+I created a dataloader using `torch.utils.data.dataloader.Dataloader` and this allowed me to create a training loop to run minibatch gradient decent. The optimiser and hyperparameters were left as parameters to the training loop, so that they could be  easily changed later.
+
+Now it came to testing and tuning the model, and I got the same issue as in the previous milestones: the effectiveness of the model depended significantly on the split of the training and test data. So, like in the previous milestones, I averaged out the performance of the model over many different splits of the data, and manually changed the hyperparameters to find the best ones. The hyperparameters I was changing were the complexity of the neural network, as well as the type of optimiser and learning rate and weight decay of the optimiser.
+
+I tried two sizes of neural network, a simple one with just one hidden layer of size 8, and a more complex one with three hidden layers of size 32. I tested two optimisers, `torch.optim.SGD` and `torch.optim.Adam`, and tuned the learning rates and weight decay for both of them, eventually giving these results:
+
+
+## Simple Network
+
+### SGD optimiser
+
+"optimiser" = "torch.optim.SGD" \
+"lr" = 0.1 \
+"weight_decay" = 0.05 \
+"epochs" = 50 \
+"hidden_layer_width" = 8 \
+"depth" = 2 
+
+
+Training RMSE = 0.721 \
+Test RMSE = 0.787 
+
+
+### Adam optimiser
+
+"optimiser" = "torch.optim.Adam" \
+"lr" = 0.01 \
+"weight_decay" = 0.05 \
+"epochs" = 50 \
+"hidden_layer_width" = 8 \
+"depth" = 2 
+
+Training RMSE = 0.708 \
+Test RMSE = 0.782
+
+
+## Complex Network
+
+### SGD optimiser
+
+"optimiser" = "torch.optim.SGD" \
+"lr" = 0.05 \
+"weight_decay" = 0.05 \
+"epochs" = 50 \
+"hidden_layer_width" = 32 \
+"depth" = 4 
+
+Training RMSE = 0.727 \
+Test RMSE = 0.791
+
+### Adam optimiser
+
+"optimiser" = "torch.optim.Adam" \
+"lr" = 0.005 \
+"weight_decay" = 0.05 \
+"epochs" = 50 \
+"hidden_layer_width" = 32 \
+"depth" = 4 
+
+Training data = 0.706 \
+Test data = 0.788
+
+
+
+The results show that the more complicated model didn't actually perform better than the simple one, in fact they were almost exactly the same. Therefore it appears that the simple model has enough complexity to fit this problem, and adding more hidden rows simply made it take longer to train. I considered trying an even more complex model, but it seems likely it would perform about the same at best, so wasn't worth it.
+
+The results also show that the Adam optimiser works slightly better than the SGD optimiser, which makes sense since it is a more sophisticated algorithm.
+
