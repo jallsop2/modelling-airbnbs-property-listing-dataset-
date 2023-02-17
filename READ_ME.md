@@ -201,7 +201,48 @@ Test data = 0.788
 
 
 
-The results show that the more complicated model didn't actually perform better than the simple one, in fact they were almost exactly the same. Therefore it appears that the simple model has enough complexity to fit this problem, and adding more hidden rows simply made it take longer to train. I considered trying an even more complex model, but it seems likely it would perform about the same at best, so wasn't worth it.
+The results show that the more complicated model didn't actually perform better than the simple one, in fact they were almost exactly the same. Therefore it appears that the simple model has enough complexity to fit this problem, and adding more hidden rows simply made it take longer to train. I considered trying an even more complex model, but it seems likely it would perform about the same at best, so wasn't worth it. The results also show that the Adam optimiser works slightly better than the SGD optimiser, which makes sense since it is a more sophisticated algorithm.
 
-The results also show that the Adam optimiser works slightly better than the SGD optimiser, which makes sense since it is a more sophisticated algorithm.
+The neural networks perform comparably to the regression models from milestone 4, on par with the best linear and gradient boosting models. It makes sense that all of the models perform about the same, since the data is limited in how effectively it can predict the nightly price. Therefore all of the models are able to reach that limit, with only slight differences in performance.
 
+# Milestone 7
+
+The aim of this milestone is to take the models and methods from the previous milestones and apply them to a new use case, in this case predicting the number of bedrooms instead of the nightly price. I used the hyperparameters which were deemed best after tuning in previous milestones, assuming that they would still be the best for this use case, and tested an instance of linear regression, decision tree, random forest, gradient boosted and neural network models. I created a new python file to take these models and apply them to predicting the number of bedrooms, again taking the average perfromance over many different tests. 
+
+## Linear Regression
+
+Training RMSE: 0.586 \
+Test RMSE: 0.608
+
+
+## Rgeression Tree
+
+Training RMSE: 0.630 \
+Test RMSE:0.660
+
+
+## Random Forest
+
+Training RMSE: 0.602 \
+Test RMSE: 0.644
+
+
+## Gradient Boosting
+
+Training RMSE: 0.565 \
+Test RMSE: 0.645
+
+
+## Neural Network (Simple/Adam optimiser)
+
+Training RMSE: 0.538 \
+Test RMSE: 0.587
+
+
+## Neural Network (Complex/Adam optimiser)
+
+Training RMSE: 0.548 \
+Test RMSE: 0.589
+
+
+These results have more differences between the models than the the previous results, showing that the neural networks is the best at predicting the number of bedrooms, followed by the linear regression model and then all of the other models. The results are close enough however to make me believe that the models are correctly tuned for this dataset, and that these models may be used for many more different possibly use cases. Again the simple and complex neural networks perform about the same, from which I can make the same assumtions as before that the added complexity is not needed to predict the data as well as possible given the data.
