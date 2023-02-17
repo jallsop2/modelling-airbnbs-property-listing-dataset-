@@ -41,11 +41,11 @@ class TorchStandardScaler:
 
 class AirbnbNightlyPriceImageDataset(Dataset):
 
-    def __init__(self, indices = None):
+    def __init__(self, indices=None, prediction_index=3):
         super().__init__()
         numerical_data, labels = load_airbnb()
 
-        numerical_data = np.concatenate((numerical_data[:,:3], numerical_data[:,4:], numerical_data[:,3].reshape([-1,1])), 1)
+        numerical_data = np.concatenate((numerical_data[:,:prediction_index], numerical_data[:,(prediction_index+1):], numerical_data[:,prediction_index].reshape([-1,1])), 1)
 
         scaler = StandardScaler()
         scaler.fit(numerical_data)
@@ -189,6 +189,34 @@ def test(model, list_of_data_sets, print_metrics = False):
             print(f"r2 score = {r2_list[i]}")
         
     return (RMSE_list, r2_list)
+
+
+def train_test_NN_model(hyperparameters, train_dataset, test_dataset):
+
+    optimiser_whitelist = ["torch.optim.SGD", "torch.optim.Adam"]
+    optimiser_str = hyperparameters["optimiser"]
+    optimiser_hyperparameters = hyperparameters["optimiser_hyperparameters"]
+    epochs = hyperparameters["epochs"]
+    batch_size = hyperparameters["batch_size"]
+    
+    if optimiser_str in optimiser_whitelist:
+        optimiser_class = eval(optimiser_str)
+    else:
+        print("That optimiser is not allowed.")
+        exit()
+
+    train_loader = DataLoader(train_dataset, batch_size, shuffle=True)
+
+    model = NN(hyperparameters["hidden_layer_width"], hyperparameters["depth"])
+
+    train(model, train_loader, optimiser_class, optimiser_hyperparameters, epochs)
+    
+    RMSE_list, r2_score_list = test(model, [train_dataset, test_dataset])
+
+    train_RMSE = RMSE_list[0].item()
+    test_RMSE = RMSE_list[1].item()
+
+    return (train_RMSE, test_RMSE)
 
 
 def save_configs_to_file(hyperparameter_list, metrics_list):

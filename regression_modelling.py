@@ -188,6 +188,22 @@ def find_best_saved_regression_model():
     return best_model_info
 
 
+def train_test_regression_model(model_class, params, train_data, test_data, prediction_index):
+
+    X_train = np.concatenate((train_data[:,:prediction_index],train_data[:,(prediction_index+1):]), 1)
+    y_train = train_data[:,prediction_index]
+    X_test = np.concatenate((test_data[:,:prediction_index],test_data[:,(prediction_index+1):]), 1)
+    y_test = test_data[:,prediction_index]
+
+    model = model_class(**params)
+    model.fit(X_train,y_train)
+    y_train_pred = model.predict(X_train)
+    y_test_pred = model.predict(X_test)
+    train_RMSE = mean_squared_error(y_train,y_train_pred,squared=False)
+    test_RMSE = mean_squared_error(y_test,y_test_pred,squared=False)
+    
+    return (train_RMSE, test_RMSE)
+
 if __name__ == "__main__":
 
     data, labels = load_airbnb()
